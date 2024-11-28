@@ -4,16 +4,19 @@ import seaborn as sns
 import streamlit as st
 from sklearn.decomposition import PCA
 import mpl_toolkits.mplot3d # pour la 3D
+import plotly.express as px
 
 #Télécharger la base de données
 url = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
 columns = ["sepal_length", "sepal_width", "petal_length", "petal_width", "species"]
 iris = pd.read_csv(url,header=None, names= columns)
 
+st.set_page_config(page_title="Exploration Iris", page_icon="🌸")
+
 st.title("Exploration de la base de données Iris")
 
 #Données
-st.subheader("Données Iris")
+st.subheader("Données Iris 📊")
 st.dataframe(iris.head(50))
 
 #Statistique descriptive
@@ -33,42 +36,55 @@ graph_choice = st.selectbox("Choisissez le graphique à afficher", ["Distributio
 
 
 if graph_choice == "Distribution de la longueur des sépales":
-    st.subheader("Graphe: Distribution de la longueur des sépales")
-    fig, ax = plt.subplots()
+    st.subheader("Graphe 📊: Distribution de la longueur des sépales")
+    sns.set_theme(style="darkgrid")
+    fig, ax = plt.subplots(figsize=(10, 6))
     sns.histplot(data=iris, x="sepal_length", hue="species", kde=True, ax= ax)
     st.pyplot(fig)
 elif graph_choice == "Relation entre longueur et largeur des pétales":
-    st.subheader("Graphe: Relation entre longueur et largeur des pétales")
-    fig, ax = plt.subplots()
+    st.subheader("Graphe 📊: Relation entre longueur et largeur des pétales")
+    sns.set_theme(style="darkgrid")
+    fig, ax = plt.subplots(figsize=(10, 6))
     sns.scatterplot(data=iris, x="petal_length", y="petal_width",hue="species", ax= ax)
     st.pyplot(fig)
 elif graph_choice == "PCA en 3D" :
-    st.subheader("Graphique : Projection PCA en 3D")
+    st.subheader("Graphe 📊: Projection PCA en 3D")
 
     # Préparer les données pour PCA
     from sklearn.preprocessing import LabelEncoder
+    # Préparer les données pour PCA
     label_encoder = LabelEncoder()
     iris['species_encoded'] = label_encoder.fit_transform(iris['species'])
 
     X = iris.drop(columns=["species", "species_encoded"])
     y = iris["species_encoded"]
 
-    # Appliquer PCA pour réduire les dimensions à 3
-    pca = PCA(n_components=3)
+    # Ajouter un sélecteur de nombre de composantes principales
+    num_components = 3
+
+    # Appliquer PCA avec le nombre de composantes choisi
+    pca = PCA(n_components=num_components)
     X_reduced = pca.fit_transform(X)
 
-    # Créer le graphique 3D
-    fig = plt.figure(figsize=(8, 6))
-    ax = fig.add_subplot(111, projection="3d", elev=-150, azim=110)
+    # Créer un graphique 3D avec Plotly
+    fig = px.scatter_3d(
+        x=X_reduced[:, 0], 
+        y=X_reduced[:, 1], 
+        z=X_reduced[:, 2], 
+        color=iris["species"],
+        labels={"x": "1ère Eigenvector", "y": "2ème Eigenvector", "z": "3ème Eigenvector" if num_components == 3 else None},
+        title="Premières composantes principales du PCA"
+    )
 
-    # Tracer les points dans l'espace 3D
-    ax.scatter(X_reduced[:, 0], X_reduced[:, 1], X_reduced[:, 2], c=y, s=40, cmap='viridis')
+    # Dynamique avec les options d'interaction Plotly
+    fig.update_layout(
+        scene=dict(
+            xaxis_title="1ère Eigenvector",
+            yaxis_title="2ème Eigenvector",
+            zaxis_title="3ème Eigenvector" if num_components == 3 else None
+        ),
+        margin=dict(l=0, r=0, b=0, t=40)
+    )
 
-    # Titres et labels
-    ax.set_title("Premières trois dimensions PCA")
-    ax.set_xlabel("1ère Eigenvector")
-    ax.set_ylabel("2ème Eigenvector")
-    ax.set_zlabel("3ème Eigenvector")
-
-    st.pyplot(fig)  # Afficher le graphique avec Streamlit
-    
+    # Afficher le graphique interactif
+    st.plotly_chart(fig)
